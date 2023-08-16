@@ -40,23 +40,11 @@ app.post('/text',(req,res) => {
 
     if(req.body.algo == 'RSA'){
         RSA(req.body.text,res)
-    }if(req.body.algo =='Substitution'){
-
-        console.log(req.body.algo)
-       
-        const cp = spawn('python',['subenc.py',req.body.text])
-
-        cp.stdout.on('data',(data) => {
-            console.log(`${data}`)
-            const d = data.toString()
-            res.send(JSON.stringify({encryptedText:d}))
-            
-        })
-        
-        cp.stderr.on('data',(data) => {
-            console.error(`${data}`)
-        })
-    }if(req.body.algo == 'DH'){
+    }
+    if(req.body.algo == 'Substitution'){
+        substitueCipher(req.body.text,res)
+    }
+    if(req.body.algo == 'DH'){
         let key = "hill";
 
         const cp = spawn('python',['hill2.py',req.body.text,2,key])
@@ -71,11 +59,10 @@ app.post('/text',(req,res) => {
             console.error(`${data}`)
         })
     }
-    if(req.body.algo != 'DH' && req.body.algo !='Substitution' && req.body.algo != 'RSA'){
+    if(req.body.algo != 'DH' && req.body.algo != 'Substitution' && req.body.algo != 'RSA'){
         encryptText(req.body.algo,req.body.text,res)
     }
    
-        
 })
 
 app.post('/textd',(req,res) => {
@@ -86,17 +73,7 @@ app.post('/textd',(req,res) => {
         RSAdec(obj.encryptedText,res)
     }
     if(obj.algo == 'Substitution'){
-        const cp = spawn('python',['subdec.py',req.body.encryptedText])
-
-        cp.stdout.on('data',(data) => {
-            console.log(`${data}`)
-            const d = data.toString()
-            res.send(JSON.stringify({decryptedData:d}))
-        })
-        
-        cp.stderr.on('data',(data) => {
-            console.error(`${data}`)
-        })
+        substituePlain(obj.encryptedText,res)
     }
     if(req.body.algo == 'DH'){
         let key = "hill";
@@ -113,7 +90,7 @@ app.post('/textd',(req,res) => {
             console.error(`${data}`)
         })
     }
-    else{
+    if(req.body.algo != 'DH' && req.body.algo != 'Substitution' && req.body.algo != 'RSA'){
         const Securitykey = Buffer.from(obj.Securitykey.data)
         const initVector = Buffer.from(obj.initVector.data)
         
@@ -205,7 +182,7 @@ function RSAdec(text,res){
 const rsaKeys = []
 
 function substitueCipher(text,res) {
-    const all_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const all_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()";
     
     /*
     Create a map to store the substitution for the given alphabet in the plain text based on the key
@@ -242,7 +219,7 @@ function substituePlain(text,res) {
     const cipher_txt = text
     const dict2 = {};
 
-    const all_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const all_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()";
 
     const key = 4;
  
@@ -311,5 +288,6 @@ function desEncrypt(text){
 
     return cipher_txt
 }
+
 
 
