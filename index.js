@@ -40,11 +40,23 @@ app.post('/text',(req,res) => {
 
     if(req.body.algo == 'RSA'){
         RSA(req.body.text,res)
-    }
-    if(req.body.algo == 'Substitution'){
-        substitueCipher(req.body.text,res)
-    }
-    if(req.body.algo == 'DH'){
+    }if(req.body.algo =='Substitution'){
+
+        console.log(req.body.algo)
+       
+        const cp = spawn('python',['subenc.py',req.body.text])
+
+        cp.stdout.on('data',(data) => {
+            console.log(`${data}`)
+            const d = data.toString()
+            res.send(JSON.stringify({encryptedText:d}))
+            
+        })
+        
+        cp.stderr.on('data',(data) => {
+            console.error(`${data}`)
+        })
+    }if(req.body.algo == 'DH'){
         let key = "hill";
 
         const cp = spawn('python',['hill2.py',req.body.text,2,key])
@@ -59,10 +71,11 @@ app.post('/text',(req,res) => {
             console.error(`${data}`)
         })
     }
-    else{
+    if(req.body.algo != 'DH' && req.body.algo !='Substitution' && req.body.algo != 'RSA'){
         encryptText(req.body.algo,req.body.text,res)
     }
    
+        
 })
 
 app.post('/textd',(req,res) => {
@@ -73,7 +86,17 @@ app.post('/textd',(req,res) => {
         RSAdec(obj.encryptedText,res)
     }
     if(obj.algo == 'Substitution'){
-        substituePlain(obj.encryptedText,res)
+        const cp = spawn('python',['subdec.py',req.body.encryptedText])
+
+        cp.stdout.on('data',(data) => {
+            console.log(`${data}`)
+            const d = data.toString()
+            res.send(JSON.stringify({decryptedData:d}))
+        })
+        
+        cp.stderr.on('data',(data) => {
+            console.error(`${data}`)
+        })
     }
     if(req.body.algo == 'DH'){
         let key = "hill";
@@ -243,6 +266,50 @@ function substituePlain(text,res) {
     console.log("Recovered plain text :", decrypt_txt);
 
     res.send(JSON.stringify({decryptedData:decrypt_txt}))
+}
+
+class DES {
+    constructor(key) {
+      // Initialize DES with key
+      this.key = crypto.enc.Hex.parse(key);
+    }
+   
+    encrypt(plaintext) {
+      // Perform DES encryption on plaintext
+      const encrypted = crypto.DES.encrypt(
+        plaintext,
+        this.key,
+        { mode: crypto.mode.ECB }
+      );
+   
+      // Return ciphertext as hex string
+      return encrypted.ciphertext.toString();
+    }
+   
+    decrypt(ciphertext) {
+      // Parse ciphertext from hex string
+      const ciphertextHex = crypto.enc.Hex.parse(ciphertext);
+   
+      // Perform DES decryption on ciphertext
+      const decrypted = crypto.DES.decrypt(
+        { ciphertext: ciphertextHex },
+        this.key,
+        { mode: crypto.mode.ECB }
+      );
+   
+      // Return decrypted plaintext as UTF-8 string
+      return decrypted.toString(crypto.enc.Utf8);
+    }
+  }
+
+
+function desEncrypt(text){
+    const key = "0123456789abcdef";
+
+    const des = new DES(key)
+    const cipher_txt = des.encrypt(text)
+
+    return cipher_txt
 }
 
 
