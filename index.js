@@ -6,6 +6,7 @@ const encryptor = require('file-encryptor')
 const bodyparser = require('body-parser')
 const crypto = require("crypto");
 const NodeRSA = require('node-rsa')
+const { spawn } = require('child_process')
 
 app.use(cors())
 app.use(bodyparser.urlencoded({extended:false}))
@@ -43,6 +44,21 @@ app.post('/text',(req,res) => {
     if(req.body.algo == 'Substitution'){
         substitueCipher(req.body.text,res)
     }
+    if(req.body.algo == 'DH'){
+        let key = "hill";
+
+        const cp = spawn('python',['hill2.py',req.body.text,2,key])
+
+        cp.stdout.on('data',(data) => {
+            console.log(`${data}`)
+            const d = data.toString()
+            res.send(JSON.stringify({encryptedText:d}))
+        })
+        
+        cp.stderr.on('data',(data) => {
+            console.error(`${data}`)
+        })
+    }
     else{
         encryptText(req.body.algo,req.body.text,res)
     }
@@ -58,7 +74,23 @@ app.post('/textd',(req,res) => {
     }
     if(obj.algo == 'Substitution'){
         substituePlain(obj.encryptedText,res)
-    }else{
+    }
+    if(req.body.algo == 'DH'){
+        let key = "hill";
+
+        const cp = spawn('python',['hill.py',req.body.encryptedText,2,key])
+
+        cp.stdout.on('data',(data) => {
+            console.log(`${data}`)
+            const d = data.toString()
+            res.send(JSON.stringify({decryptedData:d}))
+        })
+        
+        cp.stderr.on('data',(data) => {
+            console.error(`${data}`)
+        })
+    }
+    else{
         const Securitykey = Buffer.from(obj.Securitykey.data)
         const initVector = Buffer.from(obj.initVector.data)
         
@@ -126,8 +158,6 @@ function textDecrypt(encryptedData,algorithm,Securitykey,initVector,res){
     let decryptedData = decipher.update(encryptedData, "hex", "utf-8");
 
     decryptedData += decipher.final("utf8");
-
-    console.log("Decrypted message: " + decryptedData);
 
     res.send(JSON.stringify({decryptedData:decryptedData}))
 }
@@ -214,3 +244,5 @@ function substituePlain(text,res) {
 
     res.send(JSON.stringify({decryptedData:decrypt_txt}))
 }
+
+
