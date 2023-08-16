@@ -5,8 +5,7 @@ const upload = require('./upload')
 const encryptor = require('file-encryptor')
 const bodyparser = require('body-parser')
 const crypto = require("crypto");
-
-
+const NodeRSA = require('node-rsa')
 
 app.use(cors())
 app.use(bodyparser.urlencoded({extended:false}))
@@ -38,18 +37,34 @@ app.post('/dec',(req,res) => {
 
 app.post('/text',(req,res) => {
 
-    encryptText(req.body.algo,req.body.text,res)
+    if(req.body.algo == 'RSA'){
+        RSA(req.body.text,res)
+    }
+    if(req.body.algo == 'Substitution'){
+        substitueCipher(req.body.text,res)
+    }
+    else{
+        encryptText(req.body.algo,req.body.text,res)
+    }
+   
 })
 
 app.post('/textd',(req,res) => {
 
     const obj = req.body
 
-    const Securitykey = Buffer.from(obj.Securitykey.data)
-    const initVector = Buffer.from(obj.initVector.data)
-    
+    if(obj.algo == 'RSA'){
+        RSAdec(obj.encryptedText,res)
+    }
+    if(obj.algo == 'Substitution'){
+        substituePlain(obj.encryptedText,res)
+    }else{
+        const Securitykey = Buffer.from(obj.Securitykey.data)
+        const initVector = Buffer.from(obj.initVector.data)
+        
 
-    textDecrypt(obj.encryptedText,'AES-128-CBC',Securitykey,initVector,res)
+        textDecrypt(obj.encryptedText,obj.algo,Securitykey,initVector,res)
+    }
    
 })
 
@@ -115,4 +130,87 @@ function textDecrypt(encryptedData,algorithm,Securitykey,initVector,res){
     console.log("Decrypted message: " + decryptedData);
 
     res.send(JSON.stringify({decryptedData:decryptedData}))
+}
+
+function RSA(t,res) {
+    const key = new NodeRSA({b:512})
+
+    const encrypted = key.encrypt(t,'base64')
+
+   rsaKeys.push(key)
+
+    res.send(JSON.stringify({encryptedText:encrypted}))
+}
+
+function RSAdec(text,res){
+    const key = rsaKeys.pop()
+    const decrypted = key.decrypt(text,'utf8')
+
+    res.send(JSON.stringify({decryptedData:decrypted}))
+}
+
+const rsaKeys = []
+
+function substitueCipher(text,res) {
+    const all_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    
+    /*
+    Create a map to store the substitution for the given alphabet in the plain text based on the key
+    */
+    const dict1 = {};
+    const key = 4;
+    
+    for (let i = 0; i < all_letters.length; i++) {
+    dict1[all_letters[i]] = all_letters[(i + key) % all_letters.length];
+    }
+    
+    const plain_txt = text;
+    let cipher_txt = "";
+    
+    // loop to generate ciphertext
+    for (let i = 0; i < plain_txt.length; i++) {
+    const char = plain_txt[i];
+    if (all_letters.includes(char)) {
+    const temp = dict1[char];
+    cipher_txt += temp;
+    } else {
+    cipher_txt += char;
+    }
+    }
+    
+    console.log("Cipher Text is: ", cipher_txt);
+
+    res.send(JSON.stringify({encryptedText:cipher_txt}))
+
+}
+
+
+function substituePlain(text,res) {
+    const cipher_txt = text
+    const dict2 = {};
+
+    const all_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    const key = 4;
+ 
+    for (let i = 0; i < all_letters.length; i++) {
+    dict2[all_letters[i]] = all_letters[(i - key + all_letters.length) % all_letters.length];
+    }
+    
+    // loop to recover plain text
+    let decrypt_txt = "";
+    
+    for (let i = 0; i < cipher_txt.length; i++) {
+    const char = cipher_txt[i];
+    if (all_letters.includes(char)) {
+    const temp = dict2[char];
+    decrypt_txt += temp;
+    } else {
+    decrypt_txt += char;
+    }
+    }
+    
+    console.log("Recovered plain text :", decrypt_txt);
+
+    res.send(JSON.stringify({decryptedData:decrypt_txt}))
 }
